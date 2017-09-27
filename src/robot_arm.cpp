@@ -9,7 +9,7 @@
 #include "tf/transform_listener.h"
 #include "visualization_msgs//Marker.h"
 
-#define NUMBER_OF_POINT 1000
+#define NUMBER_OF_POINT 100000
 #define PI 3.14159268
 
 // RobotStatePublisher(const KDL::Tree& tree);
@@ -82,21 +82,56 @@ void transformPoint(const tf::TransformListener& listener, ros::Publisher& pub){
  *---------------------------------------- DRAW LINE ------------------------------------
  (---------------------------------------------------------------------------------------*/
 
-float theta1[10000], d2[10000], d3[10000];
+float theta1[100000], d2[100000], d3[100000];
 int index_count=0;
 
 void inverse_kinematic(float x, float y, float z, int totalPoint, int i_now){
-    theta1[index_count]=atan(-x/y);
-    d2[index_count]=-0.25+(y/cos(atan(-x/y)));
+    theta1[index_count]=atan2(-x,y);
+    d2[index_count]=-0.25+(y/cos(atan2(-x,y)));
     d3[index_count]=0.29-(0.29-z);
     index_count++;
 }
 
+void check_end_effector(float& x, float& y, float& z){
+    //check collision
+    // if (abs(x)<0.06&&abs(y)<0.06){
+    //     if (x>0) x=0.06;
+    //     else x=-0.06;
+    //     if (y>0) y=0.06;
+    //     else y=-0.06;
+    // }
+
+    if (x>0.25) x=0.25;
+    else if (x<-0.25) x=-0.25;
+    
+    if (y>0.25) y= 0.25;
+    else if (y<-0.25) y= -0.25;
+
+    if (z>0.29) z=0.29;
+    else if (z<0) z=0;
+}
+// float y_check(float y){
+//     if (y<0.060&&y>-0.060)
+//         if (y>0) return 0.06;
+//         else return -0.06;
+//     else 
+//     if (y>0.25) return 0.25;
+//     else if (y<-0.25) return -0.25;
+//     else return y;
+// }
+// float z_check(float z){
+//     if (z>0.29) return 0.29;
+//     else if (z<0) return 0;
+//     else return z;
+// }
+
 void draw_start_point(float x, float y, float z){
     float x_temp, y_temp, z_temp;
+    //check collision
+    check_end_effector(x,y,z);
     for (int i=0;i<=100;i++){
-        theta1[index_count]=atan(-x/y)/100.0*i;
-        d2[index_count]=-0.25+(y/cos(atan(-x/y)))/100.0*i;
+        theta1[index_count]=atan2(-x,y)/100.0*i;
+        d2[index_count]=-0.25+(y/cos(atan2(-x,y)))/100.0*i;
         d3[index_count]=0.29-z/100.0*i;
         index_count++;
     }
@@ -107,6 +142,10 @@ void draw_start_point(float x, float y, float z){
 
 
 void draw_line(float x1, float y1, float z1, float x2, float y2, float z2){
+    //check collision
+    check_end_effector(x1,y1,z1);
+    //check collision
+    check_end_effector(x2,y2,z2);
     float length=sqrt((x1-x2)*(x1-x2)+(y1-y2)*(y1-y2)+(z1-z2)*(z1-z2));
     if (length==0) return;
     int numberOfPoints=(int)(length*1000)+1;
@@ -115,9 +154,12 @@ void draw_line(float x1, float y1, float z1, float x2, float y2, float z2){
         x_temp=(x2-x1)*i/numberOfPoints+x1;
         y_temp=(y2-y1)*i/numberOfPoints+y1;
         z_temp=(z2-z1)*i/numberOfPoints+z1;
+
+        check_end_effector(x_temp, y_temp, z_temp);
+
         if (y_temp==0) y_temp=0.00001;
-        theta1[index_count]=atan(-x_temp/y_temp);
-        d2[index_count]=-0.25+(y_temp/cos(atan(-x_temp/y_temp)));
+        theta1[index_count]=atan2(-x_temp,y_temp);
+        d2[index_count]=-0.25+(y_temp/cos(atan2(-x_temp,y_temp)));
         d3[index_count]=0.29-(z_temp);
         index_count++;
         // inverse_kinematic(x_temp, y_temp, z_temp, numberOfPoints, i);
@@ -128,19 +170,24 @@ void draw_line(float x1, float y1, float z1, float x2, float y2, float z2){
 }
 
 float draw_circle(float x0, float y0, float z0, float r, int matphang=1){
+    //check collision
+    check_end_effector(x0,y0,z0);
     //default: matphang=xOy
     float y_start=y0-r;
     draw_line(x_last,y_last,z_last, x0, y_start, z0);
-    float chuvi=2*PI*r;
+    float chuvi=2*r;
     int numberOfPoints=(int)(chuvi*1000)+1;
     float x_temp, y_temp, z_temp;
     for (int i=0; i<=numberOfPoints/2;i++){
         y_temp=i/(numberOfPoints/2.0)*(2*r)+y_start;
         x_temp=sqrt(r*r-(y0-y_temp)*(y0-y_temp))+x0;
         z_temp=z0;
+
+        check_end_effector(x_temp,y_temp,z_temp);
+
         if (y_temp==0) y_temp=0.00001;
-        theta1[index_count]=atan(-x_temp/y_temp);
-        d2[index_count]=-0.25+(y_temp/cos(atan(-x_temp/y_temp)));
+        theta1[index_count]=atan2(-x_temp,y_temp);
+        d2[index_count]=-0.25+(y_temp/cos(atan2(-x_temp,y_temp)));
         d3[index_count]=0.29-(z_temp);
         index_count++;
     }
@@ -148,9 +195,12 @@ float draw_circle(float x0, float y0, float z0, float r, int matphang=1){
         y_temp=-i/(numberOfPoints/2.0)*2*r+(y_start+2*r);
         x_temp=-sqrt(r*r-(y0-y_temp)*(y0-y_temp))+x0;
         z_temp=z0;
+        
+        check_end_effector(x_temp,y_temp,z_temp);
+
         if (y_temp==0) y_temp=0.00001;
-        theta1[index_count]=atan(-x_temp/y_temp);
-        d2[index_count]=-0.25+(y_temp/cos(atan(-x_temp/y_temp)));
+        theta1[index_count]=atan2(-x_temp,y_temp);
+        d2[index_count]=-0.25+(y_temp/cos(atan2(-x_temp,y_temp)));
         d3[index_count]=0.29-(z_temp);
         index_count++;
     }
@@ -202,9 +252,13 @@ int main(int argc, char **argv){
     // int start_count=0;
     // bool start_flag=1;
     // float x=200/1000.0, y=200/1000.0, z=100/1000.0;
-    // draw_start_point(0.15, 0.15, 0.2);
+    // draw_start_point(0.02, 0.04, 0.06);
     // draw_line(0.020, 0.040, 0.060, 0.150, 0.200, 0.180);
-    draw_circle(0.1, 0.1, 0.2, 0.1);
+    // draw_circle(0.0, 0.0, 0.0, 0.25);
+    // draw_line(0.0, 0.0,0.0, 0.20,-0.25,0.40);
+    draw_circle(-0.10, 0.10, 0.29,0.3);
+    // draw_line(x_last, y_last, z_last, 0.050, 0.050, 0.050);
+    // draw_circle(-0.1, -0.2, 0.1, 0.05);
     // end_point();
     int time_count=0;
     while (ros::ok())
